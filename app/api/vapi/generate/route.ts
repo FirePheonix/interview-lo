@@ -3,6 +3,32 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { getRandomInterviewCover } from "@/lib/utils";
 
+// GET handler for testing the API endpoint
+export async function GET() {
+  return Response.json({
+    message: "Interview Generation API Endpoint",
+    method: "POST",
+    endpoint: "/api/vapi/generate",
+    description: "Generate interview questions using Gemini AI",
+    requiredFields: {
+      type: "string - Interview type (e.g., 'technical', 'behavioral')",
+      role: "string - Job role (e.g., 'Frontend Developer', 'Backend Developer')",
+      level: "string - Experience level (e.g., 'junior', 'mid', 'senior')",
+      techstack: "string - Technologies (e.g., 'React,Node.js,MongoDB')",
+      amount: "string - Number of questions (e.g., '5', '10')",
+      userid: "string - User ID for saving the interview",
+    },
+    example: {
+      type: "technical",
+      role: "Frontend Developer",
+      level: "mid",
+      techstack: "React,TypeScript,Next.js",
+      amount: "5",
+      userid: "user123",
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
