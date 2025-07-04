@@ -724,7 +724,7 @@ const Agent = ({
           },
         });
 
-        console.log("Setup assistant started successfully");
+        console.log("Setup assistant started successfully yes");
         setCallStatus(CallStatus.ACTIVE);
       } catch (error) {
         console.error("Failed to start setup assistant:", error);
