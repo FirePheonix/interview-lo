@@ -111,7 +111,9 @@ const Agent = ({
       };
 
       const onMessage = (message: any) => {
-        console.log("VAPI message received:", message);
+        console.log("🔥 VAPI message received:", message);
+        console.log("🔥 Message type:", message.type);
+        console.log("🔥 Message keys:", Object.keys(message));
 
         if (
           message.type === "transcript" &&
@@ -121,8 +123,15 @@ const Agent = ({
             role: message.role,
             content: message.transcript,
           };
-          setMessages((prev) => [...prev, newMessage]);
-          console.log("New message:", newMessage);
+          setMessages((prev) => {
+            const updated = [...prev, newMessage];
+            console.log("🔥 Messages updated, new count:", updated.length);
+            console.log("🔥 Latest message:", newMessage);
+            return updated;
+          });
+          console.log("🔥 New message added to state:", newMessage);
+        } else if (message.type === "transcript") {
+          console.log("🔥 Partial transcript:", message.transcript);
         }
 
         // Handle workflow variable extraction
@@ -130,10 +139,10 @@ const Agent = ({
           message.type === "workflow-variable-extraction" ||
           message.type === "variable-extraction"
         ) {
-          console.log("Variable extraction message:", message);
+          console.log("🔥 Variable extraction message:", message);
           // Store the extracted variables for later use
           if (message.variables) {
-            console.log("Extracted variables:", message.variables);
+            console.log("🔥 Extracted variables:", message.variables);
             // Store in component state or handle immediately
           }
         }
@@ -143,10 +152,10 @@ const Agent = ({
           message.type === "workflow-completed" ||
           message.type === "workflow-finished"
         ) {
-          console.log("Workflow completed message:", message);
+          console.log("🔥 Workflow completed message:", message);
           if (message.extractedVariables) {
             console.log(
-              "Final extracted variables:",
+              "🔥 Final extracted variables:",
               message.extractedVariables
             );
           }
@@ -213,8 +222,16 @@ const Agent = ({
     };
 
     const handleGenerateInterview = async () => {
-      console.log("handleGenerateInterview - Starting interview generation");
-      console.log("Messages for extraction:", messages);
+      console.log("🚀 handleGenerateInterview - Starting interview generation");
+      console.log("🚀 Messages for extraction:", messages);
+      console.log("🚀 Messages count:", messages.length);
+      console.log("🚀 Current mode:", mode);
+      console.log("🚀 Current call ID:", currentCallId);
+
+      // Debug each message
+      messages.forEach((msg, index) => {
+        console.log(`🚀 Message ${index}:`, msg);
+      });
 
       // For workflow mode, we should get the extracted variables from the call
       // For assistant mode, we extract from the conversation transcript
@@ -698,7 +715,7 @@ const Agent = ({
       try {
         // Use the setup assistant from constants for data collection
         const { setupAssistant } = await import("@/constants");
-        
+
         console.log("Starting VAPI call with setup assistant");
         await vapi.start(setupAssistant, {
           variableValues: {
