@@ -326,6 +326,11 @@ const Agent = ({
       // Validate required data
       if (!userId) {
         console.error("Missing userId for interview generation");
+        // Don't redirect immediately for generate type - show dialog instead
+        if (type === "generate") {
+          console.log("Showing dialog for missing userId scenario");
+          return; // Let the dialog handle this
+        }
         router.push("/");
         return;
       }
@@ -363,14 +368,23 @@ const Agent = ({
             "✅ Interview questions generated successfully:",
             result.questions
           );
-          router.push("/");
+          // Don't redirect immediately for generate type - let dialog handle success
+          if (type !== "generate") {
+            router.push("/");
+          }
         } else {
           console.error("❌ API returned success: false", result.message);
-          router.push("/");
+          // Don't redirect immediately for generate type - let dialog handle error
+          if (type !== "generate") {
+            router.push("/");
+          }
         }
       } catch (error) {
         console.error("❌ Error generating interview:", error);
-        router.push("/");
+        // Don't redirect immediately for generate type - let dialog handle error
+        if (type !== "generate") {
+          router.push("/");
+        }
       }
     };
 
@@ -612,9 +626,12 @@ const Agent = ({
     };
 
     if (callStatus === CallStatus.FINISHED) {
+      // For generate type, show dialog instead of auto-generating
       if (type === "generate") {
-        handleGenerateInterview();
+        console.log("🟡 Showing interview setup dialog for generate type");
+        setShowInterviewDialog(true);
       } else {
+        console.log("🟡 Auto-generating for non-generate type");
         handleGenerateFeedback(messages);
       }
     }
@@ -825,7 +842,7 @@ const Agent = ({
 
   const handleInterviewFormSubmit = async (formData: InterviewFormData) => {
     setIsGeneratingInterview(true);
-    setShowInterviewDialog(false);
+    // Don't close dialog immediately - keep it open to show loading state
 
     console.log("🚀 Manual interview generation with form data:", formData);
 
@@ -857,19 +874,18 @@ const Agent = ({
           "✅ Interview questions generated successfully:",
           result.questions
         );
+        // Close dialog only on success
+        setShowInterviewDialog(false);
         router.push("/");
       } else {
         console.error("❌ API returned success: false", result.message);
-        alert(
-          "Failed to generate interview: " + (result.message || "Unknown error")
-        );
+        // Keep dialog open and show error - user can retry or cancel
+        throw new Error(result.message || "Unknown error");
       }
     } catch (error) {
       console.error("❌ Error generating interview:", error);
-      alert(
-        "Error generating interview: " +
-          (error instanceof Error ? error.message : "Unknown error")
-      );
+      // Keep dialog open on error - don't close it
+      // The error will be shown in the dialog
     } finally {
       setIsGeneratingInterview(false);
     }
@@ -901,6 +917,7 @@ const Agent = ({
 
     const handleCancel = () => {
       setShowInterviewDialog(false);
+      router.push("/");
     };
 
     if (!showInterviewDialog) return null;
