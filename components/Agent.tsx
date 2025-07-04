@@ -40,13 +40,15 @@ const Agent = ({
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Poll for call status only in workflow mode
+    // For workflow mode with Web SDK, we don't need polling since we get events directly
+    // Only use polling if we have a server-side call ID from old API approach
     let intervalId: NodeJS.Timeout;
 
     if (
       mode === "workflow" &&
       currentCallId &&
-      callStatus === CallStatus.ACTIVE
+      callStatus === CallStatus.ACTIVE &&
+      currentCallId.startsWith("dev-") // Only poll for server-side calls
     ) {
       intervalId = setInterval(async () => {
         try {
@@ -681,28 +683,9 @@ const Agent = ({
     console.log("=== Starting Workflow Mode ===");
 
     if (type === "generate") {
-      // Step 1: Setup workflow
-      console.log("Setting up workflow for data collection...");
-
-      const setupResponse = await fetch("/api/vapi/setup-workflow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const setupResult = await setupResponse.json();
-      console.log("Setup workflow response:", setupResult);
-
-      if (!setupResult.success) {
-        console.error("Failed to setup workflow:", setupResult.message);
-        setCallStatus(CallStatus.INACTIVE);
-        return;
-      }
-
-      // Step 2: Use the actual VAPI workflow via API
-      // This connects to your real workflow with proper variable extraction
-      console.log("Starting VAPI workflow via API...");
+      // Use the VAPI Web SDK directly with setup assistant
+      // This approach works for both localhost and production
+      console.log("Starting interview setup using VAPI Web SDK...");
 
       const vapi = createVapiClient();
 
@@ -713,74 +696,21 @@ const Agent = ({
       }
 
       try {
-        console.log("Creating workflow call via API...");
-
-        const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
-
-        if (!workflowId) {
-          console.error("No workflow ID found in environment variables");
-          setCallStatus(CallStatus.INACTIVE);
-          return;
-        }
-
-        console.log("Using workflow ID:", workflowId);
-
-        // Create a workflow call using the API route
-        // This will create a call with your workflow that has variable extraction
-        const callResponse = await fetch("/api/vapi/workflow-call", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        // Use the setup assistant from constants for data collection
+        const { setupAssistant } = await import("@/constants");
+        
+        console.log("Starting VAPI call with setup assistant");
+        await vapi.start(setupAssistant, {
+          variableValues: {
+            username: userName,
+            userid: userId,
           },
-          body: JSON.stringify({
-            workflowId: workflowId,
-            phoneNumber: phoneNumber,
-            variableValues: {
-              username: userName,
-              userid: userId,
-            },
-          }),
         });
 
-        const callResult = await callResponse.json();
-        console.log("Workflow call response:", callResult);
-
-        if (callResult.success) {
-          console.log("Workflow call created successfully");
-          setCurrentCallId(callResult.callId);
-
-          // For web calls, we have two options:
-          // 1. Use the webCallUrl in a new tab/window
-          // 2. Embed the web call in the current page
-          if (callResult.webCallUrl) {
-            console.log("Web call URL available:", callResult.webCallUrl);
-
-            // Option 1: Open in new tab (works for both localhost and production)
-            console.log("Opening web call in new tab for user interaction");
-            window.open(
-              callResult.webCallUrl,
-              "_blank",
-              "width=800,height=600"
-            );
-
-            // Set status to active since the call is now available
-            setCallStatus(CallStatus.ACTIVE);
-          } else {
-            console.log("No web call URL provided, assuming direct connection");
-            setCallStatus(CallStatus.ACTIVE);
-          }
-
-          // Start polling for call status to get extracted variables
-          console.log(
-            "Starting to monitor workflow call for variable extraction..."
-          );
-        } else {
-          console.error("Failed to create workflow call:", callResult.message);
-          console.error("Error details:", callResult.error);
-          setCallStatus(CallStatus.INACTIVE);
-        }
+        console.log("Setup assistant started successfully");
+        setCallStatus(CallStatus.ACTIVE);
       } catch (error) {
-        console.error("Failed to start workflow conversation:", error);
+        console.error("Failed to start setup assistant:", error);
         setCallStatus(CallStatus.INACTIVE);
       }
     } else {

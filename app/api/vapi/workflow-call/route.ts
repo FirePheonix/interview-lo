@@ -19,16 +19,14 @@ export async function POST(request: Request) {
     console.log("Creating workflow call with ID:", workflowId);
     console.log("Variable values:", variableValues);
 
-    // For workflows, we need to create a web call with the workflow
-    // Web calls work for both localhost and production without phone number verification
+    // For workflows, we need to create an outbound phone call with the workflow
+    // Use a properly formatted phone number for production
     const callPayload: any = {
-      type: "webCall",
+      type: "outboundPhoneCall",
       workflowId: workflowId,
       customer: {
-        number: phoneNumber || "+15551234567", // Default test number
+        number: phoneNumber || "+15551234567", // Properly formatted E.164 phone number
       },
-      maxDurationSeconds: 600, // 10 minutes max
-      recordingEnabled: true,
     };
 
     console.log("Call payload:", JSON.stringify(callPayload, null, 2));
