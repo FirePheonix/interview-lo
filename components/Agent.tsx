@@ -9,6 +9,14 @@ import { createFeedback } from "@/lib/actions/general.action";
 import { createVapiClient } from "@/lib/vapi.sdk";
 import { interviewer } from "@/constants";
 
+interface InterviewFormData {
+  type: string;
+  role: string;
+  level: string;
+  techstack: string;
+  amount: number;
+}
+
 enum CallStatus {
   INACTIVE = "INACTIVE",
   CONNECTING = "CONNECTING",
@@ -38,6 +46,8 @@ const Agent = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastMessage, setLastMessage] = useState<string>("");
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [showInterviewDialog, setShowInterviewDialog] = useState(false);
+  const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
 
   useEffect(() => {
     // For workflow mode with Web SDK, we don't need polling since we get events directly
@@ -806,10 +816,245 @@ const Agent = ({
       // Workflow mode - call management is handled server-side
       console.log("Workflow call ended by user");
     }
+
+    // Show interview setup dialog for generate type
+    if (type === "generate") {
+      setShowInterviewDialog(true);
+    }
+  };
+
+  const handleInterviewFormSubmit = async (formData: InterviewFormData) => {
+    setIsGeneratingInterview(true);
+    setShowInterviewDialog(false);
+
+    console.log("🚀 Manual interview generation with form data:", formData);
+
+    try {
+      const response = await fetch("/api/vapi/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...formData,
+          userid: userId, // Auto-include Firebase user ID
+        }),
+      });
+
+      console.log("API response status:", response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API error response:", errorText);
+        throw new Error(`API returned ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log("API response data:", result);
+
+      if (result.success) {
+        console.log(
+          "✅ Interview questions generated successfully:",
+          result.questions
+        );
+        router.push("/");
+      } else {
+        console.error("❌ API returned success: false", result.message);
+        alert(
+          "Failed to generate interview: " + (result.message || "Unknown error")
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error generating interview:", error);
+      alert(
+        "Error generating interview: " +
+          (error instanceof Error ? error.message : "Unknown error")
+      );
+    } finally {
+      setIsGeneratingInterview(false);
+    }
+  };
+
+  const InterviewSetupDialog = () => {
+    const [formData, setFormData] = useState<InterviewFormData>({
+      type: "Technical",
+      role: "Software Engineer",
+      level: "Mid",
+      techstack: "JavaScript,React,Node.js",
+      amount: 5,
+    });
+
+    const handleInputChange = (
+      field: keyof InterviewFormData,
+      value: string | number
+    ) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      handleInterviewFormSubmit(formData);
+    };
+
+    const handleCancel = () => {
+      setShowInterviewDialog(false);
+    };
+
+    if (!showInterviewDialog) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <h2 className="text-xl font-bold mb-4 text-gray-800">
+            Setup Your Interview
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Interview Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Interview Type
+              </label>
+              <select
+                value={formData.type}
+                onChange={(e) => handleInputChange("type", e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="Technical">Technical</option>
+                <option value="Behavioral">Behavioral</option>
+                <option value="Mixed">Mixed</option>
+              </select>
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Role/Position
+              </label>
+              <select
+                value={formData.role}
+                onChange={(e) => handleInputChange("role", e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="Software Engineer">Software Engineer</option>
+                <option value="Frontend Developer">Frontend Developer</option>
+                <option value="Backend Developer">Backend Developer</option>
+                <option value="Full Stack Developer">
+                  Full Stack Developer
+                </option>
+                <option value="Data Scientist">Data Scientist</option>
+                <option value="Product Manager">Product Manager</option>
+                <option value="DevOps Engineer">DevOps Engineer</option>
+                <option value="Mobile Developer">Mobile Developer</option>
+                <option value="QA Engineer">QA Engineer</option>
+              </select>
+            </div>
+
+            {/* Experience Level */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Experience Level
+              </label>
+              <select
+                value={formData.level}
+                onChange={(e) => handleInputChange("level", e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="Junior">Junior</option>
+                <option value="Mid">Mid</option>
+                <option value="Senior">Senior</option>
+              </select>
+            </div>
+
+            {/* Tech Stack */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Technologies/Skills (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={formData.techstack}
+                onChange={(e) => handleInputChange("techstack", e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="React,TypeScript,Node.js,MongoDB"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Example: React,TypeScript,Node.js,MongoDB,AWS
+              </p>
+            </div>
+
+            {/* Number of Questions */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Questions
+              </label>
+              <select
+                value={formData.amount}
+                onChange={(e) =>
+                  handleInputChange("amount", parseInt(e.target.value))
+                }
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value={3}>3 Questions</option>
+                <option value={4}>4 Questions</option>
+                <option value={5}>5 Questions</option>
+                <option value={6}>6 Questions</option>
+                <option value={7}>7 Questions</option>
+                <option value={8}>8 Questions</option>
+                <option value={9}>9 Questions</option>
+                <option value={10}>10 Questions</option>
+              </select>
+            </div>
+
+            {/* User ID Display */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                User ID (Auto-filled)
+              </label>
+              <input
+                type="text"
+                value={userId || "Not available"}
+                disabled
+                className="w-full p-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-gray-500"
+                disabled={isGeneratingInterview}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                disabled={isGeneratingInterview}
+              >
+                {isGeneratingInterview ? "Generating..." : "Generate Interview"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   return (
     <>
+      <InterviewSetupDialog />
+
       <div className="call-view">
         {/* AI Interviewer Card */}
         <div className="card-interviewer">
@@ -842,12 +1087,15 @@ const Agent = ({
       </div>
 
       {(callStatus === CallStatus.CONNECTING ||
-        callStatus === CallStatus.ACTIVE) && (
+        callStatus === CallStatus.ACTIVE ||
+        isGeneratingInterview) && (
         <div className="w-full flex justify-center mb-4">
           <div className="flex items-center space-x-2 text-blue-600">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
             <span className="text-sm">
-              {callStatus === CallStatus.CONNECTING
+              {isGeneratingInterview
+                ? "Generating your interview questions..."
+                : callStatus === CallStatus.CONNECTING
                 ? "Setting up workflow..."
                 : currentCallId
                 ? `Call active (ID: ${currentCallId.slice(0, 8)}...)`
@@ -874,7 +1122,7 @@ const Agent = ({
       )}
 
       <div className="w-full flex justify-center gap-2">
-        {callStatus !== "ACTIVE" ? (
+        {callStatus !== "ACTIVE" && !isGeneratingInterview ? (
           <>
             <button className="relative btn-call" onClick={() => handleCall()}>
               <span
@@ -922,11 +1170,11 @@ const Agent = ({
               </button>
             )}
           </>
-        ) : (
+        ) : !isGeneratingInterview ? (
           <button className="btn-disconnect" onClick={() => handleDisconnect()}>
             End
           </button>
-        )}
+        ) : null}
       </div>
     </>
   );
