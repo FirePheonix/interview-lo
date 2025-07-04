@@ -51,32 +51,42 @@ export async function POST(request: Request) {
       // Provide specific error messages for different scenarios
       if (response.status === 400) {
         console.log("Bad request - check workflow configuration");
-        return NextResponse.json({
-          success: false,
-          message: "Invalid workflow call configuration",
-          error: errorText,
-          debug: {
-            payload: callPayload,
-            status: response.status,
-            suggestion: "Check if workflow ID is valid and workflow is properly configured",
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Invalid workflow call configuration",
+            error: errorText,
+            debug: {
+              payload: callPayload,
+              status: response.status,
+              suggestion:
+                "Check if workflow ID is valid and workflow is properly configured",
+            },
           },
-        }, { status: 400 });
+          { status: 400 }
+        );
       }
 
       if (response.status === 401) {
-        return NextResponse.json({
-          success: false,
-          message: "Authentication failed - check VAPI server token",
-          error: errorText,
-        }, { status: 401 });
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Authentication failed - check VAPI server token",
+            error: errorText,
+          },
+          { status: 401 }
+        );
       }
 
       if (response.status === 403) {
-        return NextResponse.json({
-          success: false,
-          message: "Access forbidden - check VAPI account permissions",
-          error: errorText,
-        }, { status: 403 });
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Access forbidden - check VAPI account permissions",
+            error: errorText,
+          },
+          { status: 403 }
+        );
       }
 
       throw new Error(
