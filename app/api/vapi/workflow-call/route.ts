@@ -19,15 +19,16 @@ export async function POST(request: Request) {
     console.log("Creating workflow call with ID:", workflowId);
     console.log("Variable values:", variableValues);
 
-    // For workflows, we need to create an outbound call with the workflow
-    // Since we don't have a real phone number, we'll create a mock call
-    // In production, you would have a real phone number
+    // For workflows, we need to create a web call with the workflow
+    // Web calls work for both localhost and production without phone number verification
     const callPayload: any = {
-      type: "outboundPhoneCall",
+      type: "webCall",
       workflowId: workflowId,
       customer: {
         number: phoneNumber || "+15551234567", // Default test number
       },
+      maxDurationSeconds: 600, // 10 minutes max
+      recordingEnabled: true,
     };
 
     console.log("Call payload:", JSON.stringify(callPayload, null, 2));
@@ -44,31 +45,38 @@ export async function POST(request: Request) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Workflow call creation failed:", errorText);
+      console.error("Response status:", response.status);
+      console.error("Call payload was:", JSON.stringify(callPayload, null, 2));
 
-      // For development/testing, if phone call creation fails,
-      // return a success response with instructions
+      // Provide specific error messages for different scenarios
       if (response.status === 400) {
-        console.log(
-          "Phone call creation failed - this is expected in development"
-        );
-        console.log(
-          "In production, you would need a real phone number and phone call setup"
-        );
-
+        console.log("Bad request - check workflow configuration");
         return NextResponse.json({
-          success: true,
-          callId: `dev-workflow-${Date.now()}`,
-          message:
-            "Development mode - workflow ready but phone call not created",
-          instructions: {
-            message:
-              "For full workflow testing, you need to configure phone numbers in VAPI",
-            workflowId: workflowId,
-            variableValues: variableValues,
-            developmentNote:
-              "This is a development simulation. The workflow is properly configured but phone calls are not supported in this environment.",
+          success: false,
+          message: "Invalid workflow call configuration",
+          error: errorText,
+          debug: {
+            payload: callPayload,
+            status: response.status,
+            suggestion: "Check if workflow ID is valid and workflow is properly configured",
           },
-        });
+        }, { status: 400 });
+      }
+
+      if (response.status === 401) {
+        return NextResponse.json({
+          success: false,
+          message: "Authentication failed - check VAPI server token",
+          error: errorText,
+        }, { status: 401 });
+      }
+
+      if (response.status === 403) {
+        return NextResponse.json({
+          success: false,
+          message: "Access forbidden - check VAPI account permissions",
+          error: errorText,
+        }, { status: 403 });
       }
 
       throw new Error(
@@ -82,6 +90,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       callId: callData.id,
+      webCallUrl: callData.webCallUrl,
       message: "Workflow call created successfully",
       callData: callData,
     });

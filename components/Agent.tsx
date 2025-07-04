@@ -748,7 +748,23 @@ const Agent = ({
         if (callResult.success) {
           console.log("Workflow call created successfully");
           setCurrentCallId(callResult.callId);
-          setCallStatus(CallStatus.ACTIVE);
+          
+          // For web calls, we have two options:
+          // 1. Use the webCallUrl in a new tab/window
+          // 2. Embed the web call in the current page
+          if (callResult.webCallUrl) {
+            console.log("Web call URL available:", callResult.webCallUrl);
+            
+            // Option 1: Open in new tab (works for both localhost and production)
+            console.log("Opening web call in new tab for user interaction");
+            window.open(callResult.webCallUrl, '_blank', 'width=800,height=600');
+            
+            // Set status to active since the call is now available
+            setCallStatus(CallStatus.ACTIVE);
+          } else {
+            console.log("No web call URL provided, assuming direct connection");
+            setCallStatus(CallStatus.ACTIVE);
+          }
 
           // Start polling for call status to get extracted variables
           console.log(
@@ -756,6 +772,7 @@ const Agent = ({
           );
         } else {
           console.error("Failed to create workflow call:", callResult.message);
+          console.error("Error details:", callResult.error);
           setCallStatus(CallStatus.INACTIVE);
         }
       } catch (error) {

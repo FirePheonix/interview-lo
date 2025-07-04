@@ -1,9 +1,14 @@
-import { vapi } from "@/lib/vapi";
 import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    const workflow = await vapi.workflows.create({
+    const serverToken = process.env.VAPI_SERVER_TOKEN;
+    
+    if (!serverToken) {
+      throw new Error("VAPI_SERVER_TOKEN environment variable not set");
+    }
+
+    const workflowData = {
       name: "Interview Info Collection",
       nodes: [
         {
@@ -27,10 +32,35 @@ export async function POST() {
           firstMessage: "Thanks! We will now prepare your interview questions.",
         },
       ],
-      edges: [{ from: "start", to: "end" }],
+      edges: [
+        {
+          from: "start",
+          to: "end",
+        },
+      ],
+    };
+
+    const response = await fetch("https://api.vapi.ai/workflow", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serverToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(workflowData),
     });
 
-    return NextResponse.json({ success: true, workflowId: workflow.id });
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Failed to create workflow: ${response.status} ${result.message || result.error}`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      workflowId: result.id,
+      message: "Interview workflow created successfully",
+      workflow: result,
+    });
   } catch (error) {
     console.error("Error creating workflow:", error);
     return NextResponse.json(
